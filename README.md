@@ -13,5 +13,11 @@ adds "THIS IS A TEST" in red to the image 'something.jpg' at coordinates 400,500
 
 NOTE: this only alters the in-memory image; it is up to you to save the image.
 
+The basic functionality is provided by the `text` method from ImageDraw; however, `addtext` additionally handles:
+
+* Transparency (alpha channel) whether or not the underlying image has an alpha channel.
+* Optional solid background around text
+* Arbitrary text rotation
+
 ## COMMAND LINE UTILITY
 textcmd.py is a command-line utility that drives addtext().
