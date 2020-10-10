@@ -2,14 +2,16 @@
 
 
 import argparse
-from PIL import Image
+from PIL import Image, ImageColor
 from os import path
 
 from addtext import addtext
 
+
 # support for parsing RGB tuples, x,y pairs, etc for argparse arguments
 def argtuple(s, *dflts, n=None, seps=(',',), type=int):
     """Return tuple of 'type' from a,b,c,d... format.
+    Raises ValueError if s cannot be parsed or converted (per type())
 
     seps:  separators. Each is tried, in order, stopping when s.split()
            results in multiple fields or once all have been tried.
@@ -46,6 +48,7 @@ def argtuple(s, *dflts, n=None, seps=(',',), type=int):
             if len(dflts) == 0:
                 raise ValueError(f"too few fields in {s}")
             a += dflts[alen:]
+
     return tuple(map(type, a))
 
 
@@ -54,32 +57,55 @@ def commapair(s):
 
 
 def rgbaspec(s, minval=0, maxval=255, alpha=255):
-    """Return tuple of ints from 'nnn.nnn.nnn[.aaa]' or #rrggbb[aa] (hex)"""
+    """Return tuple of ints from various color specification formats.
 
-    # accept None (or zero-length string) as black / transparent
-    if not s:
-        s = '#00000000'
+    First tries ImageColor.getrgb, which (at this writing) accepts:
+          '#rrggbb'
+          '#rrggbbaa'
+          .. various color names (e.g., 'red')
+    Then tries, in order:
+          None or '' will be accepted as (0, 0, 0, 0) i.e., transparent
+          rr.gg.bb[.aa]
+          rr,gg,bb[,aa]
 
-    # Note: various conversion exceptions deliberately just bubble out
+    If no alpha is given, a 4-tuple will always be returned and the
+    alpha value defaults to 255 (no transparency).
 
-    if s[0] == '#':
-        if len(s) != 7 and len(s) != 9:
-            raise ValueError(f"{s} is not #rrggbb or #rrggbbaa format")
-        if len(s) == 9:
-            alpha = int(s[7:9], 16)
-        rgba4 = (int(s[1:3], 16), int(s[3:5], 16), int(s[5:7], 16), alpha)
-    else:
+    If alpha is explicitly set to None, a 3-tuple will be return IF
+    no alpha is present in s.
+
+    minval and maxval will be applied to all values in the resulting tuple
+    and raise ValueError if exceeded.
+    """
+
+    try:
+        rgba = ImageColor.getrgb(s)
+    except ValueError:
+        rgba = None
+
+    if rgba is None and (s is None or len(s) == 0):
+        rgba = (0, 0, 0, 0)
+
+    if rgba is None:
         # accepts R.G.B[.A] or R,G,B[,A]
-        rgba4 = argtuple(s, seps=('.', ','))
-        # some defaulting rules...
-        if len(rgba4) == 1:
-            rgba4 = (rgba4[0], rgba4[0], rgba4[0])   # gray
-        if len(rgba4) == 3:
-            rgba4 = (*rgba4, alpha)                  # no alpha - use default
-        if len(rgba4) != 4:
-            raise ValueError(f"{s} is not in R.G.B[.A] format")
+        rgba = argtuple(s, seps=('.', ','))
+        if len(rgba) not in (1, 3, 4):
+            raise ValueError(f"unknown color specifier {s}")
 
-    return rgba4
+    # if only one value was given interpret as gray
+    if len(rgba) == 1:
+        rgba = (rgba[0], rgba[0], rgba[0])
+
+    # alpha default rules as per docstring
+    if alpha is not None and len(rgba) == 3:
+        rgba = (*rgba, alpha)
+
+    for v in rgba:
+        if minval is not None and v < minval:
+            raise ValueError(f"{v} (from '{s}') below minval ({minval})")
+        if maxval is not None and v > maxval:
+            raise ValueError(f"{v} (from '{s}') above maxval ({maxval})")
+    return rgba
 
 
 def saveimage(img, outname, image_format="JPEG"):
