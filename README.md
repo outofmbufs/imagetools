@@ -21,3 +21,7 @@ The basic functionality is provided by the `text` method from ImageDraw; however
 
 ## COMMAND LINE UTILITY
 textcmd.py is a command-line utility that drives addtext().
+
+# croppan.py
+
+Perform a seqeunce of crops against a sequence of images, panning from one crop to the next by interpolation.
