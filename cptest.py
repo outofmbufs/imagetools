@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 from croppan import expand_pans, gen_panspecs, PanSpec
+from contextlib import contextmanager
 
 
 class TestMethods(unittest.TestCase):
@@ -212,27 +213,34 @@ class TestMethods(unittest.TestCase):
             self.assertEqual(t[0], self.DN[i])
             self.assertEqual(t[1], crop_A)
 
-    def test8(self):
-        # test the file form of gen_panspecs
+    # context manager encapsulates "delete the temp file when done"
+    @contextmanager
+    def _tempfile(self):
         tfd, tfname = tempfile.mkstemp(text=True)
         try:
-            os.write(tfd, b'{"image0": "abc", "crop0": "0,1,2,3"}')
-
-            os.close(tfd)
-            pans = list(gen_panspecs(tfname))
+            yield tfd, tfname
         finally:
+            # Close the file descriptor, but don't bomb if the file was
+            # closed already (which the test does Because Reasons)
+            try:
+                os.close(tfd)
+            except OSError:
+                pass
             os.remove(tfname)
 
+    def test8(self):
+        # test the file form of gen_panspecs
+        with self._tempfile() as (tfd, tfname):
+            os.write(tfd, b'{"image0": "abc", "crop0": "0,1,2,3"}')
+            os.close(tfd)
+            pans = list(gen_panspecs(tfname))
         self.assertEqual(len(pans), 1)
 
-        tfd, tfname = tempfile.mkstemp(text=True)
-        try:
+        with self._tempfile() as (tfd, tfname):
             os.write(tfd, b'[{"image0": "abc", "crop0": "0,1,2,3"},'
                           b'{"image0": "def", "crop0": "3,2,1,0"}]')
             os.close(tfd)
             pans = list(gen_panspecs(tfname))
-        finally:
-            os.remove(tfname)
         self.assertEqual(len(pans), 2)
         j1, j2 = pans
         self.assertEqual(j1.image0, "abc")
