@@ -1,3 +1,10 @@
+# IMAGE TOOLS
+An assortment of utilities inspired by needs while making a timelapse movie.
+
+addtext: puts text onto images (thin wrapper over PIL functions)
+
+croppan: crops a sequence of images, and interpolates between multiple crop points
+
 # addtext
 
 Add text to images, using the PIL library. See docstring for usage info.
