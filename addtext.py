@@ -33,7 +33,9 @@ def addtext(img, x, y, text, *, font=None, size=0,
 
     # 1: determine size of just the text rendering
     if bgsize is None:
-        bgsize = ImageDraw.Draw(img).textsize(text, f)
+        # textsize() has been removed, reimplement via textbbox..
+        _, _, w, h = ImageDraw.Draw(img).textbbox((0, 0), text, font=f)
+        bgsize = (w, h)
 
     # 2: make new RBGA image, put text into it, rotate
     paddedsize = (bgsize[0] + bgpad[0], bgsize[1] + bgpad[1])
